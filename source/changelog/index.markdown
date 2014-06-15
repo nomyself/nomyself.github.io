@@ -13,5 +13,5 @@ footer: true
 	2) 增加 Weibo 边栏
 	3) 修改 favicon 图标
 	4) 缩小字体
-	5) jQuery 使用又拍CND
+	5) jQuery 使用又拍 CDN
 {% endcodeblock %}
