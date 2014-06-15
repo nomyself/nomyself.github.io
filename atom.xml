@@ -1,0 +1,94 @@
+<?xml version="1.0" encoding="utf-8"?>
+<feed xmlns="http://www.w3.org/2005/Atom">
+
+  <title><![CDATA[Nomyself's Blog]]></title>
+  <link href="http://nomyself.me/atom.xml" rel="self"/>
+  <link href="http://nomyself.me/"/>
+  <updated>2014-06-15T21:04:34+08:00</updated>
+  <id>http://nomyself.me/</id>
+  <author>
+    <name><![CDATA[nomyself]]></name>
+    
+  </author>
+  <generator uri="http://octopress.org/">Octopress</generator>
+
+  
+  <entry>
+    <title type="html"><![CDATA[从新认识网卡]]></title>
+    <link href="http://nomyself.me/blog/2014/06/14/understand-the-network-card.html"/>
+    <updated>2014-06-14T10:26:55+08:00</updated>
+    <id>http://nomyself.me/blog/2014/06/14/understand-the-network-card</id>
+    <content type="html"><![CDATA[<p>最近有个 <code>case</code> 由于网卡的软中断几乎被打满导致作为七层负载均衡的 <code>Nginx</code> 机器出现大量丢包，
+<code>Upstream Proxy</code> 出现大量重试，业务响应耗时明显增加。当时的主要问题是 <code>tcpflow</code> 导致的。但这次不说 <code>tcpflow</code>, 了解下网卡以及这方面的软硬件技术。</p>
+
+<h2>网卡相关的数据</h2>
+
+<p><code>$ lspci -v | grep Ethernet -A 1</code></p>
+
+<pre><code>01:00.0 Ethernet controller: Intel Corporation I350 Gigabit Network Connection (rev 01)
+Subsystem: Dell Intel GbE 4P I350crNDC
+</code></pre>
+
+<p>以上便是使用的 <code>Intel I350</code> 的网卡，官方 Datasheet <a href="http://www.intel.com/content/dam/www/public/us/en/documents/datasheets/ethernet-controller-i350-datasheet.pdf">下载</a>。</p>
+
+<p>既然是说到调优，必然需要关注下相关的 <code>Performance Features</code></p>
+
+<ul>
+<li>TCP segmentation offload Up to 256 KB</li>
+<li>Fragmented UDP checksum offload for packet reassembly</li>
+<li>Message Signaled Interrupts (MSI)</li>
+<li>Message Signaled Interrupts (MSI-X) number of vectors (25)</li>
+<li>Packet interrupt coalescing timers (packet timers) and absolute-delay interrupt timers for both transmit and receive operation</li>
+<li>Interrupt throttling control to limit maximum interrupt rate and improve CPU utilization</li>
+<li>Rx packet split header</li>
+<li>Receive Side Scaling (RSS) number of queues per port (up to 8)</li>
+<li>RX header replication</li>
+<li>Low latency interrupt</li>
+<li>DCA support</li>
+<li>TCP timer interrupts</li>
+<li>No snoop</li>
+<li>Relax ordering</li>
+<li>TSO interleaving for reduced latency</li>
+<li>SCTP receive and transmit checksum offload</li>
+<li>UDP TSO</li>
+</ul>
+
+
+<p>一堆 TSO,GSO,LRO,GRO,DCA,RSS,MSI,MSI-X 看似很高级的名词，其实也无非是一些对应场景的优化，跟《葵花宝典》类似，不是什么人都可以练的。尝试前最好了解清楚具体的含义，参考资料 <code>1</code> 讲解的很清晰明了。</p>
+
+<h2>测试相关的工具</h2>
+
+<p>任何 Performance 都需要进行测试以验证所做的修改是否合理，是否达到预期。测试方面没有很多的经验，这方面的水也够深的，下次详细了解下。很多时候大家都使用以下工具做些测试，官方应该有不少好东西可以扒扒。</p>
+
+<ul>
+<li><a href="http://www.netperf.org/">NetPerf</a></li>
+<li><a href="http://iperf.fr/">Iperf</a></li>
+</ul>
+
+
+<h2>数据的监控</h2>
+
+<p>作为一个 sa，我通常把监控放在很高的位置，我相信不能测量也就不能优化这句话，都不了解你想要的数据，怎么可能做好优化呢。</p>
+
+<p>列几点我想到的可以做的监控，常规的 cpu，mem，io，app 不提。</p>
+
+<ul>
+<li>网卡统计信息，ip/tcp 数据; 可以通过 ifconfig 或者 ethtool -S, netstat -s 或者 /proc/net/netstat 获取</li>
+<li>app 响应时间，通过 access_log 获取 response time。</li>
+<li>tcp stream 数据可以通过 tcpflow 或者 pt-tcp-model 工具来获取</li>
+</ul>
+
+
+<h2>参考资料</h2>
+
+<p>以下都是非常好的学习和实践资料</p>
+
+<ol>
+<li><a href="http://blog.csdn.net/dog250/article/details/6462389">Effective Gigabit Ethernet Adapters-Intel千兆网卡8257X性能调优</a></li>
+<li><a href="http://jaseywang.me/2013/10/15/10g82599eb-%E7%BD%91%E5%8D%A1%E6%B5%8B%E8%AF%95%E4%BC%98%E5%8C%96%E6%80%BB/">10g82599eb-测试优化中断处理</a></li>
+</ol>
+
+]]></content>
+  </entry>
+  
+</feed>

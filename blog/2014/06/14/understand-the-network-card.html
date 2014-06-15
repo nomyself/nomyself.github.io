@@ -1,0 +1,286 @@
+
+<!DOCTYPE html>
+<!--[if IEMobile 7 ]><html class="no-js iem7"><![endif]-->
+<!--[if lt IE 9]><html class="no-js lte-ie8"><![endif]-->
+<!--[if (gt IE 8)|(gt IEMobile 7)|!(IEMobile)|!(IE)]><!--><html class="no-js" lang="en"><!--<![endif]-->
+<head>
+  <meta charset="utf-8">
+  <title>从新认识网卡 - Nomyself's Blog</title>
+  <meta name="author" content="nomyself">
+
+  
+  <meta name="description" content="最近有个 case 由于网卡的软中断几乎被打满导致作为七层负载均衡的 Nginx 机器出现大量丢包，
+Upstream Proxy 出现大量重试，业务响应耗时明显增加。当时的主要问题是 tcpflow 导致的。但这次不说 tcpflow, 了解下网卡以及这方面的软硬件技术。 网卡相关的数据 $ &hellip;">
+  
+
+  <!-- http://t.co/dKP3o1e -->
+  <meta name="HandheldFriendly" content="True">
+  <meta name="MobileOptimized" content="320">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+
+  
+  <link rel="canonical" href="http://nomyself.me/blog/2014/06/14/understand-the-network-card.html">
+  <link href="/favicon.png" rel="icon">
+  <link href="/stylesheets/screen.css" media="screen, projection" rel="stylesheet" type="text/css">
+  <link href="/atom.xml" rel="alternate" title="Nomyself's Blog" type="application/atom+xml">
+  <script src="/javascripts/modernizr-2.0.js"></script>
+  <script src="//ajax.googleapis.com/ajax/libs/jquery/1.9.1/jquery.min.js"></script>
+  <script>!window.jQuery && document.write(unescape('%3Cscript src="./javascripts/libs/jquery.min.js"%3E%3C/script%3E'))</script>
+  <script src="/javascripts/octopress.js" type="text/javascript"></script>
+  <!--Fonts from Google"s Web font directory at http://google.com/webfonts -->
+<!-- link href="//fonts.googleapis.com/css?family=PT+Serif:regular,italic,bold,bolditalic" rel="stylesheet" type="text/css" -->
+<!-- link href="//fonts.googleapis.com/css?family=PT+Sans:regular,italic,bold,bolditalic" rel="stylesheet" type="text/css" -->
+
+  
+
+</head>
+
+<body   >
+  <header role="banner"><hgroup>
+  <h1><a href="/">Nomyself's Blog</a></h1>
+  
+    <h2>A blogging framework for hackers.</h2>
+  
+</hgroup>
+
+</header>
+  <nav role="navigation"><ul class="subscription" data-subscription="rss">
+  <li><a href="/atom.xml" rel="subscribe-rss" title="subscribe via RSS">RSS</a></li>
+  
+</ul>
+  
+<form action="https://www.google.com/search" method="get">
+  <fieldset role="search">
+    <input type="hidden" name="q" value="site:nomyself.me" />
+    <input class="search" type="text" name="q" results="0" placeholder="Search"/>
+  </fieldset>
+</form>
+  
+<ul class="main-navigation">
+  <li><a href="/">Blog</a></li>
+  <li><a href="/blog/archives">Archives</a></li>
+</ul>
+
+</nav>
+  <div id="main">
+    <div id="content">
+      <div>
+<article class="hentry" role="article">
+  
+  <header>
+    
+      <h1 class="entry-title">从新认识网卡</h1>
+    
+    
+      <p class="meta">
+        
+
+
+
+
+
+
+
+
+  
+
+
+<time datetime="2014-06-14T10:26:55+08:00" pubdate data-updated="true">Jun 14<span>th</span>, 2014</time>
+        
+      </p>
+    
+  </header>
+
+
+<div class="entry-content"><p>最近有个 <code>case</code> 由于网卡的软中断几乎被打满导致作为七层负载均衡的 <code>Nginx</code> 机器出现大量丢包，
+<code>Upstream Proxy</code> 出现大量重试，业务响应耗时明显增加。当时的主要问题是 <code>tcpflow</code> 导致的。但这次不说 <code>tcpflow</code>, 了解下网卡以及这方面的软硬件技术。</p>
+
+<h2>网卡相关的数据</h2>
+
+<p><code>$ lspci -v | grep Ethernet -A 1</code></p>
+
+<pre><code>01:00.0 Ethernet controller: Intel Corporation I350 Gigabit Network Connection (rev 01)
+Subsystem: Dell Intel GbE 4P I350crNDC
+</code></pre>
+
+<p>以上便是使用的 <code>Intel I350</code> 的网卡，官方 Datasheet <a href="http://www.intel.com/content/dam/www/public/us/en/documents/datasheets/ethernet-controller-i350-datasheet.pdf">下载</a>。</p>
+
+<p>既然是说到调优，必然需要关注下相关的 <code>Performance Features</code></p>
+
+<ul>
+<li>TCP segmentation offload Up to 256 KB</li>
+<li>Fragmented UDP checksum offload for packet reassembly</li>
+<li>Message Signaled Interrupts (MSI)</li>
+<li>Message Signaled Interrupts (MSI-X) number of vectors (25)</li>
+<li>Packet interrupt coalescing timers (packet timers) and absolute-delay interrupt timers for both transmit and receive operation</li>
+<li>Interrupt throttling control to limit maximum interrupt rate and improve CPU utilization</li>
+<li>Rx packet split header</li>
+<li>Receive Side Scaling (RSS) number of queues per port (up to 8)</li>
+<li>RX header replication</li>
+<li>Low latency interrupt</li>
+<li>DCA support</li>
+<li>TCP timer interrupts</li>
+<li>No snoop</li>
+<li>Relax ordering</li>
+<li>TSO interleaving for reduced latency</li>
+<li>SCTP receive and transmit checksum offload</li>
+<li>UDP TSO</li>
+</ul>
+
+
+<p>一堆 TSO,GSO,LRO,GRO,DCA,RSS,MSI,MSI-X 看似很高级的名词，其实也无非是一些对应场景的优化，跟《葵花宝典》类似，不是什么人都可以练的。尝试前最好了解清楚具体的含义，参考资料 <code>1</code> 讲解的很清晰明了。</p>
+
+<h2>测试相关的工具</h2>
+
+<p>任何 Performance 都需要进行测试以验证所做的修改是否合理，是否达到预期。测试方面没有很多的经验，这方面的水也够深的，下次详细了解下。很多时候大家都使用以下工具做些测试，官方应该有不少好东西可以扒扒。</p>
+
+<ul>
+<li><a href="http://www.netperf.org/">NetPerf</a></li>
+<li><a href="http://iperf.fr/">Iperf</a></li>
+</ul>
+
+
+<h2>数据的监控</h2>
+
+<p>作为一个 sa，我通常把监控放在很高的位置，我相信不能测量也就不能优化这句话，都不了解你想要的数据，怎么可能做好优化呢。</p>
+
+<p>列几点我想到的可以做的监控，常规的 cpu，mem，io，app 不提。</p>
+
+<ul>
+<li>网卡统计信息，ip/tcp 数据; 可以通过 ifconfig 或者 ethtool -S, netstat -s 或者 /proc/net/netstat 获取</li>
+<li>app 响应时间，通过 access_log 获取 response time。</li>
+<li>tcp stream 数据可以通过 tcpflow 或者 pt-tcp-model 工具来获取</li>
+</ul>
+
+
+<h2>参考资料</h2>
+
+<p>以下都是非常好的学习和实践资料</p>
+
+<ol>
+<li><a href="http://blog.csdn.net/dog250/article/details/6462389">Effective Gigabit Ethernet Adapters-Intel千兆网卡8257X性能调优</a></li>
+<li><a href="http://jaseywang.me/2013/10/15/10g82599eb-%E7%BD%91%E5%8D%A1%E6%B5%8B%E8%AF%95%E4%BC%98%E5%8C%96%E6%80%BB/">10g82599eb-测试优化中断处理</a></li>
+</ol>
+
+</div>
+
+
+  <footer>
+    <p class="meta">
+      
+  
+
+<span class="byline author vcard">Posted by <span class="fn">nomyself</span></span>
+
+      
+
+
+
+
+
+
+
+
+  
+
+
+<time datetime="2014-06-14T10:26:55+08:00" pubdate data-updated="true">Jun 14<span>th</span>, 2014</time>
+      
+
+
+    </p>
+    
+      <div class="sharing">
+  
+  
+  
+</div>
+
+    
+    <p class="meta">
+      
+      
+    </p>
+  </footer>
+</article>
+
+  <section>
+    <h1>Comments</h1>
+    <div id="disqus_thread" aria-live="polite"><noscript>Please enable JavaScript to view the <a href="http://disqus.com/?ref_noscript">comments powered by Disqus.</a></noscript>
+</div>
+  </section>
+
+</div>
+
+<aside class="sidebar">
+  
+    <section>
+  <h1>Recent Posts</h1>
+  <ul id="recent_posts">
+    
+      <li class="post">
+        <a href="/blog/2014/06/14/understand-the-network-card.html">从新认识网卡</a>
+      </li>
+    
+  </ul>
+</section>
+
+<section>
+  <h1>Weibo</h1>
+  <ul id="weibo">
+    <li>
+      <iframe 
+        width="100%" 
+        height="550" 
+        class="share_self" 
+        frameborder="0" 
+        scrolling="no" 
+        src="http://widget.weibo.com/weiboshow/index.php?width=0&height=550&ptype=1&speed=0&skin=&isTitle=0&noborder=1&isWeibo=1&isFans=&uid=1871085997&verifier=1448dc03">
+      </iframe>
+    </li>
+  </ul>
+</section>
+
+
+  
+</aside>
+
+
+    </div>
+  </div>
+  <footer role="contentinfo"><p>
+  Copyright &copy; 2014 - nomyself -
+  <span class="credit">Powered by <a href="http://octopress.org">Octopress</a></span>
+</p>
+
+</footer>
+  
+
+<script type="text/javascript">
+      var disqus_shortname = 'nomyself';
+      
+        
+        // var disqus_developer = 1;
+        var disqus_identifier = 'http://nomyself.me/blog/2014/06/14/understand-the-network-card.html';
+        var disqus_url = 'http://nomyself.me/blog/2014/06/14/understand-the-network-card.html';
+        var disqus_script = 'embed.js';
+      
+    (function () {
+      var dsq = document.createElement('script'); dsq.type = 'text/javascript'; dsq.async = true;
+      dsq.src = '//' + disqus_shortname + '.disqus.com/' + disqus_script;
+      (document.getElementsByTagName('head')[0] || document.getElementsByTagName('body')[0]).appendChild(dsq);
+    }());
+</script>
+
+
+
+
+
+
+
+
+
+
+
+</body>
+</html>
