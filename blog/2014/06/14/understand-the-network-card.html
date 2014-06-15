@@ -5,7 +5,7 @@
 <!--[if (gt IE 8)|(gt IEMobile 7)|!(IEMobile)|!(IE)]><!--><html class="no-js" lang="en"><!--<![endif]-->
 <head>
   <meta charset="utf-8">
-  <title>My Octopress Blog</title>
+  <title>从新认识网卡 - My Octopress Blog</title>
   <meta name="author" content="nomyself">
 
   
@@ -19,7 +19,7 @@ Upstream Proxy 出现大量重试，业务响应耗时明显增加。当时的�
   <meta name="viewport" content="width=device-width, initial-scale=1">
 
   
-  <link rel="canonical" href="http://nomyself.me/index.html">
+  <link rel="canonical" href="http://nomyself.me/blog/2014/06/14/understand-the-network-card.html">
   <link href="/favicon.png" rel="icon">
   <link href="/stylesheets/screen.css" media="screen, projection" rel="stylesheet" type="text/css">
   <link href="/atom.xml" rel="alternate" title="My Octopress Blog" type="application/atom+xml">
@@ -64,15 +64,12 @@ Upstream Proxy 出现大量重试，业务响应耗时明显增加。当时的�
 </nav>
   <div id="main">
     <div id="content">
-      <div class="blog-index">
+      <div>
+<article class="hentry" role="article">
   
-  
-  
-    <article>
-      
   <header>
     
-      <h1 class="entry-title"><a href="/blog/2014/06/14/understand-the-network-card.html">从新认识网卡</a></h1>
+      <h1 class="entry-title">从新认识网卡</h1>
     
     
       <p class="meta">
@@ -95,7 +92,7 @@ Upstream Proxy 出现大量重试，业务响应耗时明显增加。当时的�
   </header>
 
 
-  <div class="entry-content"><p>最近有个 <code>case</code> 由于网卡的软中断几乎被打满导致作为七层负载均衡的 <code>Nginx</code> 机器出现大量丢包，
+<div class="entry-content"><p>最近有个 <code>case</code> 由于网卡的软中断几乎被打满导致作为七层负载均衡的 <code>Nginx</code> 机器出现大量丢包，
 <code>Upstream Proxy</code> 出现大量重试，业务响应耗时明显增加。当时的主要问题是 <code>tcpflow</code> 导致的。但这次不说 <code>tcpflow</code>, 了解下网卡以及这方面的软硬件技术。</p>
 
 <h2>网卡相关的数据</h2>
@@ -166,18 +163,55 @@ Subsystem: Dell Intel GbE 4P I350crNDC
 </ol>
 
 </div>
+
+
+  <footer>
+    <p class="meta">
+      
   
+
+<span class="byline author vcard">Posted by <span class="fn">nomyself</span></span>
+
+      
+
+
+
+
+
+
+
+
   
 
 
-    </article>
+<time datetime="2014-06-14T10:26:55+08:00" pubdate data-updated="true">Jun 14<span>th</span>, 2014</time>
+      
+
+
+    </p>
+    
+      <div class="sharing">
   
-  <div class="pagination">
-    
-    <a href="/blog/archives">Blog Archives</a>
-    
-  </div>
+  
+  
 </div>
+
+    
+    <p class="meta">
+      
+      
+    </p>
+  </footer>
+</article>
+
+  <section>
+    <h1>Comments</h1>
+    <div id="disqus_thread" aria-live="polite"><noscript>Please enable JavaScript to view the <a href="http://disqus.com/?ref_noscript">comments powered by Disqus.</a></noscript>
+</div>
+  </section>
+
+</div>
+
 <aside class="sidebar">
   
     <section>
@@ -194,7 +228,7 @@ Subsystem: Dell Intel GbE 4P I350crNDC
 <section>
   <h1>GitHub Repos</h1>
   <ul id="gh_repos">
-    <li class="loading">Status updating&#8230;</li>
+    <li class="loading">Status updating...</li>
   </ul>
   
   <a href="https://github.com/nomyself">@nomyself</a> on GitHub
@@ -227,6 +261,7 @@ Subsystem: Dell Intel GbE 4P I350crNDC
   
 </aside>
 
+
     </div>
   </div>
   <footer role="contentinfo"><p>
@@ -241,7 +276,10 @@ Subsystem: Dell Intel GbE 4P I350crNDC
       var disqus_shortname = 'nomyself';
       
         
-        var disqus_script = 'count.js';
+        // var disqus_developer = 1;
+        var disqus_identifier = 'http://nomyself.me/blog/2014/06/14/understand-the-network-card.html';
+        var disqus_url = 'http://nomyself.me/blog/2014/06/14/understand-the-network-card.html';
+        var disqus_script = 'embed.js';
       
     (function () {
       var dsq = document.createElement('script'); dsq.type = 'text/javascript'; dsq.async = true;
